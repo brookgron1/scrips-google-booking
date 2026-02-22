@@ -1,0 +1,113 @@
+<div class="wrap">
+  <div class="card">
+    <h2>Booking approval</h2>
+    <div class="note">Approve = removes slot from availability + adds to Google Calendar.</div>
+
+    <div class="row" style="margin-top:10px;">
+      <input id="key" placeholder="Admin key" value="<?= ADMIN_KEY ?>">
+      <input id="bid" placeholder="Booking ID" value="<?= FOCUS_ID ?>">
+    </div>
+
+    <div class="twoBtns">
+      <button class="btn" id="loadBtn" type="button">Load booking</button>
+      <a class="btn mutedBtn" href="<?= ScriptApp.getService().getUrl() ?>" target="_top">Back to booking site</a>
+    </div>
+
+    <div id="box" style="margin-top:12px;"></div>
+
+    <div class="twoBtns" style="margin-top:12px; display:none;" id="actionBtns">
+      <button class="btn" id="approveBtn" type="button">Approve</button>
+      <button class="btn mutedBtn" id="rejectBtn" type="button">Reject</button>
+    </div>
+
+    <div class="success" id="okMsg">Done.</div>
+    <div class="error" id="errMsg">Error.</div>
+  </div>
+</div>
+
+<script>
+  const box = document.getElementById('box');
+  const okMsg = document.getElementById('okMsg');
+  const errMsg = document.getElementById('errMsg');
+  const actionBtns = document.getElementById('actionBtns');
+
+  let currentId = null;
+
+  function showErr(msg){
+    errMsg.style.display = 'block';
+    errMsg.textContent = msg || 'Error';
+    okMsg.style.display = 'none';
+  }
+  function showOk(msg){
+    okMsg.style.display = 'block';
+    okMsg.textContent = msg || 'Done';
+    errMsg.style.display = 'none';
+  }
+
+  function render(b){
+    const proof = b.proof_link ? `<a href="${b.proof_link}" target="_blank">Proof link</a>` : '-';
+    box.innerHTML = `
+      <div class="detailGrid">
+        <div class="detailRow"><span>Status</span><b>${b.status}</b></div>
+        <div class="detailRow"><span>When</span><b>${b.date} ${b.start_time}–${b.end_time}</b></div>
+        <div class="detailRow"><span>Name</span><b>${b.name || '-'}</b></div>
+        <div class="detailRow"><span>Phone</span><b>${b.phone || '-'}</b></div>
+        <div class="detailRow"><span>People</span><b>${b.people || '-'}</b></div>
+        <div class="detailRow"><span>Total VND</span><b>${b.total_vnd || '-'}</b></div>
+        <div class="detailRow"><span>Deposit VND</span><b>${b.deposit_vnd || '-'}</b></div>
+        <div class="detailRow"><span>Pay method</span><b>${b.pay_method || '-'}</b></div>
+        <div class="detailRow"><span>Payment note</span><b>${b.payment_note || '-'}</b></div>
+        <div class="detailRow"><span>Proof</span><b>${proof}</b></div>
+        <div class="detailRow"><span>EventId</span><b>${b.EventId || '-'}</b></div>
+        <div class="detailRow"><span>Admin note</span><b>${b.admin_note || '-'}</b></div>
+      </div>
+    `;
+    actionBtns.style.display = 'grid';
+  }
+
+  function load(){
+    const key = document.getElementById('key').value.trim();
+    const bid = document.getElementById('bid').value.trim();
+    currentId = bid;
+
+    box.innerHTML = 'Loading…';
+    errMsg.style.display = 'none';
+    okMsg.style.display = 'none';
+    actionBtns.style.display = 'none';
+
+    google.script.run.withSuccessHandler((res)=>{
+      if (!res || !res.ok){
+        showErr(res && res.error ? res.error : 'UNAUTHORIZED / NOT_FOUND');
+        box.innerHTML = '';
+        return;
+      }
+      render(res.booking);
+    }).adminGetBooking_(key, bid);
+  }
+
+  document.getElementById('loadBtn').addEventListener('click', load);
+
+  document.getElementById('approveBtn').addEventListener('click', ()=>{
+    const key = document.getElementById('key').value.trim();
+    if (!currentId) return;
+    google.script.run.withSuccessHandler((res)=>{
+      if (!res || !res.ok) return showErr(res && res.error ? res.error : 'Error');
+      showOk('Approved + calendar event created.');
+      load();
+    }).adminApprove_(key, currentId);
+  });
+
+  document.getElementById('rejectBtn').addEventListener('click', ()=>{
+    const key = document.getElementById('key').value.trim();
+    if (!currentId) return;
+    const note = prompt('Reject note (optional):') || '';
+    google.script.run.withSuccessHandler((res)=>{
+      if (!res || !res.ok) return showErr(res && res.error ? res.error : 'Error');
+      showOk('Rejected.');
+      load();
+    }).adminReject_(key, currentId, note);
+  });
+
+  // auto load if prefilled
+  setTimeout(()=>{ if (document.getElementById('bid').value.trim()) load(); }, 200);
+</script>
