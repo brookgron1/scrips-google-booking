@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+  <head>
+    <?!= include('Styles'); ?>
+  </head>
+  <body>
+    <? if (PAGE === 'admin_detail') { ?>
+      <?!= include('AdminDetail'); ?>
+    <? } else { ?>
+      <?!= include('Client'); ?>
+    <? } ?>
+  </body>
+</html>
